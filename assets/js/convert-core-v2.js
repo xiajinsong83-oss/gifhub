@@ -204,20 +204,24 @@
     var fps = opts.fps || 10;
     var dur = isFinite(video.duration) ? video.duration : 0;
     if (!dur || dur <= 0) throw new Error('BadVideo');
+    var startSec = opts.startSec > 0 ? Math.min(opts.startSec, dur - 0.1) : 0;
+    var endSec = opts.endSec && opts.endSec > startSec ? Math.min(opts.endSec, dur) : dur;
+    var span = endSec - startSec;
+    if (span < 0.05) span = dur;
     var frames = [];
-    var interval = dur / count;
+    var interval = span / count;
     video.muted = true;
     video.loop = false;
     try {
-      video.currentTime = 0.05;
-      await seekVideo(video, 0.05, 800);
+      video.currentTime = startSec + 0.05;
+      await seekVideo(video, startSec + 0.05, 800);
     } catch (e) { /* ignore */ }
     var playing = false;
     try { await video.play(); playing = true; } catch (e) { playing = false; }
 
     for (var i = 0; i < count; i++) {
       checkAbort(signal);
-      var target = Math.min(dur - 0.01, interval * (i + 0.5));
+      var target = startSec + Math.min(span - 0.01, interval * (i + 0.5));
       if (playing) {
         await waitVideoTime(video, target, 2000);
       } else {
@@ -350,6 +354,120 @@
     });
   }
 
+  /* ---------- rotate / flip (pure pixel ops) ---------- */
+  function transformFrames(frames, opts) {
+    opts = opts || {};
+    var rot = ((opts.rotate || 0) % 360 + 360) % 360;
+    var flipH = !!opts.flipH, flipV = !!opts.flipV;
+    return frames.map(function (f) {
+      var w = f.width, h = f.height, d = f.rgba;
+      var nw = (rot === 90 || rot === 270) ? h : w;
+      var nh = (rot === 90 || rot === 270) ? w : h;
+      var nd = new Uint8Array(nw * nh * 4);
+      for (var y = 0; y < nh; y++) {
+        for (var x = 0; x < nw; x++) {
+          var sx = x, sy = y;
+          switch (rot) {
+            case 90:  sx = h - 1 - y; sy = x; break;
+            case 180: sx = w - 1 - x; sy = h - 1 - y; break;
+            case 270: sx = y; sy = w - 1 - x; break;
+          }
+          if (flipH) sx = w - 1 - sx;
+          if (flipV) sy = h - 1 - sy;
+          var si = (sy * w + sx) * 4, di = (y * nw + x) * 4;
+          nd[di] = d[si]; nd[di + 1] = d[si + 1]; nd[di + 2] = d[si + 2]; nd[di + 3] = d[si + 3];
+        }
+      }
+      return { rgba: nd, width: nw, height: nh, delayMs: f.delayMs };
+    });
+  }
+
+  /* ---------- center crop by ratio (0..1, 1 = keep all) ---------- */
+  function cropFrames(frames, cropPct) {
+    var p = Math.min(0.99, Math.max(0.1, cropPct || 1));
+    if (p >= 0.99) return frames;
+    return frames.map(function (f) {
+      var w = f.width, h = f.height;
+      var nw = Math.max(2, Math.round(w * p / 2) * 2);
+      var nh = Math.max(2, Math.round(h * p / 2) * 2);
+      var ox = Math.round((w - nw) / 2), oy = Math.round((h - nh) / 2);
+      var d = f.rgba, nd = new Uint8Array(nw * nh * 4);
+      for (var y = 0; y < nh; y++) {
+        nd.set(d.subarray(((oy + y) * w + ox) * 4, ((oy + y) * w + ox + nw) * 4), y * nw * 4);
+      }
+      return { rgba: nd, width: nw, height: nh, delayMs: f.delayMs };
+    });
+  }
+
+  /* ---------- minimal ZIP writer (pako deflate + crc32) ---------- */
+  var CRC_TABLE = (function () {
+    var t = new Uint32Array(256);
+    for (var n = 0; n < 256; n++) {
+      var c = n;
+      for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+  function crc32(buf) {
+    var c = 0xFFFFFFFF;
+    for (var i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+  // entries: [{name: 'frame-01.png', data: Uint8Array}] -> ZIP Blob
+  function makeZip(entries) {
+    var pakoLib = window.pako || null;
+    var localParts = [], centralParts = [], offset = 0;
+    var te = (typeof TextEncoder !== 'undefined') ? new TextEncoder() : null;
+    for (var i = 0; i < entries.length; i++) {
+      var nameU = te ? te.encode(entries[i].name) : unescape(encodeURIComponent(entries[i].name));
+      var data = entries[i].data;
+      var compressed = pakoLib ? pakoLib.deflate(data, { level: 6 }) : data;
+      var method = pakoLib ? 8 : 0;
+      var crc = crc32(data);
+      var uSz = data.length, cSz = compressed.length;
+      var lh = new Uint8Array(30 + nameU.length);
+      var v = new DataView(lh.buffer);
+      v.setUint32(0, 0x04034b50, true);
+      v.setUint16(4, 20, true); v.setUint16(6, 0x0800, true);
+      v.setUint16(8, method, true); v.setUint16(10, 0, true); v.setUint16(12, 0, true);
+      v.setUint32(14, crc, true);
+      v.setUint32(18, cSz, true); v.setUint32(22, uSz, true);
+      v.setUint16(26, nameU.length, true); v.setUint16(28, 0, true);
+      lh.set(nameU, 30);
+      var full = new Uint8Array(lh.length + cSz);
+      full.set(lh); full.set(compressed, lh.length);
+      localParts.push(full);
+      var ch = new Uint8Array(46 + nameU.length);
+      var cv = new DataView(ch.buffer);
+      cv.setUint32(0, 0x02014b50, true);
+      cv.setUint16(4, 20, true); cv.setUint16(6, 20, true); cv.setUint16(8, 0x0800, true);
+      cv.setUint16(10, method, true); cv.setUint16(12, 0, true); cv.setUint16(14, 0, true);
+      cv.setUint32(16, crc, true); cv.setUint32(20, cSz, true); cv.setUint32(24, uSz, true);
+      cv.setUint16(28, nameU.length, true);
+      cv.setUint16(30, 0, true); cv.setUint16(32, 0, true); cv.setUint16(34, 0, true); cv.setUint16(36, 0, true);
+      cv.setUint32(38, 0, true); cv.setUint32(42, offset, true);
+      ch.set(nameU, 46);
+      centralParts.push(ch);
+      offset += full.length;
+    }
+    var centralSize = 0;
+    centralParts.forEach(function (p) { centralSize += p.length; });
+    var eocd = new Uint8Array(22);
+    var ev = new DataView(eocd.buffer);
+    ev.setUint32(0, 0x06054b50, true);
+    ev.setUint16(4, 0, true); ev.setUint16(6, 0, true);
+    ev.setUint16(8, entries.length, true); ev.setUint16(10, entries.length, true);
+    ev.setUint32(12, centralSize, true); ev.setUint32(16, offset, true);
+    var total = offset + centralSize + 22;
+    var out = new Uint8Array(total);
+    var pos = 0;
+    localParts.forEach(function (p) { out.set(p, pos); pos += p.length; });
+    centralParts.forEach(function (p) { out.set(p, pos); pos += p.length; });
+    out.set(eocd, pos);
+    return new Blob([out], { type: 'application/zip' });
+  }
+
   /* ---------- public API ---------- */
   window.GifConverter = {
     checkAbort: checkAbort,
@@ -360,6 +478,9 @@
     imageFileToFrame: imageFileToFrame,
     encodeApng: encodeApng,
     framesToVideo: framesToVideo,
+    transformFrames: transformFrames,
+    cropFrames: cropFrames,
+    makeZip: makeZip,
     framesScale: framesScale,
     framesThin: framesThin,
     framesSpeed: framesSpeed,

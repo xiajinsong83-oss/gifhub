@@ -134,21 +134,30 @@
         var lightweight = byId('lightMode') && byId('lightMode').checked;
         if (lightweight) { width = 320; fps = 5; }
         var dur = isFinite(video.duration) ? video.duration : 0;
-        var count = Math.min(maxF, Math.floor(dur * fps));
+        var startSec = numVal('startSec', 0);
+        var endSec = numVal('endSec', 0);
+        var span = (endSec > startSec ? endSec : dur) - startSec;
+        if (span < 0.05) { showError('badvideo'); setBusy(false); return; }
+        var count = Math.min(maxF, Math.floor(span * fps));
         if (count > 300) {
           var ok = await confirmWarn(count);
           if (!ok) { setBusy(false); return; }
-          if (count > 400) { fps = Math.max(4, Math.floor(fps * 300 / count)); count = Math.min(300, Math.floor(dur * fps)); }
+          if (count > 400) { fps = Math.max(4, Math.floor(fps * 300 / count)); count = Math.min(300, Math.floor(span * fps)); }
         }
         showProgress('extracting', 0.02);
         var ex = await C.videoExtractFrames(video, {
           maxWidth: width, count: count, fps: fps,
+          startSec: startSec, endSec: endSec > startSec ? endSec : 0,
           onProgress: progressCb('extracting'), signal: ac.signal
         });
         framesCache = ex.frames;
         showProgress('encoding', 0.5);
-        var res = await C.encodeGif(ex.frames, { onProgress: progressCb('encoding'), signal: ac.signal });
-        finishConversion(res.blob, defaultFname(file, '.gif'), file.size);
+        var outFmt = byId('outFormat') ? byId('outFormat').value : 'gif';
+        var res = outFmt === 'apng'
+          ? await C.encodeApng(ex.frames, { signal: ac.signal })
+          : await C.encodeGif(ex.frames, { onProgress: progressCb('encoding'), signal: ac.signal });
+        var ext = outFmt === 'apng' ? '.apng' : '.gif';
+        finishConversion(res.blob, defaultFname(file, ext), file.size);
       } catch (err) {
         handleErr(err);
       } finally {
@@ -201,8 +210,11 @@
           if (i % 2 === 1) await C.yieldToMain();
         }
         showProgress('encoding', 0.55);
-        var res = await C.encodeGif(frames, { onProgress: progressCb('encoding'), signal: ac.signal });
-        finishConversion(res.blob, defaultFname(files[0], '.gif'), files.reduce(function (a, b) { return a + b.size; }, 0));
+        var fmt = byId('outFormat') ? byId('outFormat').value : 'gif';
+        var res = fmt === 'apng'
+          ? await C.encodeApng(frames, { signal: ac.signal })
+          : await C.encodeGif(frames, { onProgress: progressCb('encoding'), signal: ac.signal });
+        finishConversion(res.blob, defaultFname(files[0], fmt === 'apng' ? '.apng' : '.gif'), files.reduce(function (a, b) { return a + b.size; }, 0));
       } catch (err) { handleErr(err); }
       finally { setBusy(false); currentAbort = null; }
     });
@@ -230,14 +242,18 @@
         var width = Math.min(numVal('outWidth', 480), 800);
         var every = numVal('everyN', 1);
         var speedF = numVal('speedFactor', 1);
+        var rot = byId('rotate') ? parseInt(byId('rotate').value, 10) : 0;
+        var flipH = byId('flipH') && byId('flipH').checked;
+        var flipV = byId('flipV') && byId('flipV').checked;
         var lightweight = byId('lightMode') && byId('lightMode').checked;
         if (lightweight) width = 320;
-        if (width !== dec.width) {
+        if (every > 1) frames = C.framesThin(frames, every);
+        if (speedF !== 1) frames = C.framesSpeed(frames, speedF);
+        if (rot || flipH || flipV) frames = C.transformFrames(frames, { rotate: rot, flipH: flipH, flipV: flipV });
+        if (width !== frames[0].width) {
           showProgress('scaling', 0.35);
           await C.scaleFramesInPlace(frames, width, progressCb('scaling'), ac.signal);
         }
-        if (every > 1) frames = C.framesThin(frames, every);
-        if (speedF !== 1) frames = C.framesSpeed(frames, speedF);
         if (!frames.length) { showError('noframes'); setBusy(false); return; }
         showProgress('encoding', 0.55);
         var res = await C.encodeGif(frames, { onProgress: progressCb('encoding'), signal: ac.signal });
@@ -474,16 +490,29 @@
       try {
         var width = Math.min(numVal('outWidth', 1024), 4096);
         var to = byId('toFormat').value;
+        var cropPct = Math.min(99, Math.max(10, numVal('cropPct', 100))) / 100;
+        var q = byId('imgQuality') ? byId('imgQuality').value : 'high';
+        var quality = q === 'low' ? 0.7 : q === 'med' ? 0.85 : 0.95;
         var img = await C.loadImage(file);
         var canvas = C.createCanvas(img.naturalWidth, img.naturalHeight);
         var ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0);
-        if (img.naturalWidth > width) {
-          var scale = width / img.naturalWidth;
-          var tw = Math.max(2, Math.round(img.naturalWidth * scale));
-          var th = Math.max(2, Math.round(img.naturalHeight * scale));
-          canvas.width = tw; canvas.height = th;
-          ctx.drawImage(img, 0, 0, tw, th);
+        if (cropPct < 0.99) {
+          var sw = Math.max(2, Math.round(img.naturalWidth * cropPct));
+          var sh = Math.max(2, Math.round(img.naturalHeight * cropPct));
+          var sx = Math.round((img.naturalWidth - sw) / 2);
+          var sy = Math.round((img.naturalHeight - sh) / 2);
+          canvas.width = sw; canvas.height = sh;
+          ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+        }
+        if (canvas.width > width) {
+          var scale = width / canvas.width;
+          var tw = Math.max(2, Math.round(canvas.width * scale));
+          var th = Math.max(2, Math.round(canvas.height * scale));
+          var c2 = C.createCanvas(tw, th);
+          var x2 = c2.getContext('2d');
+          x2.drawImage(canvas, 0, 0, tw, th);
+          canvas = c2; ctx = x2;
         }
         var mime = to === 'jpg' ? 'image/jpeg' : to === 'webp' ? 'image/webp' : to === 'gif' ? 'image/gif' : 'image/png';
         if (to === 'gif') {
@@ -493,7 +522,7 @@
           finishConversion(resG.blob, defaultFname(file, '.gif'), file.size);
           setBusy(false); currentAbort = null; return;
         }
-        var blob = await C.canvasToBlob(canvas, mime, 0.92);
+        var blob = await C.canvasToBlob(canvas, mime, quality);
         finishConversion(blob, defaultFname(file, '.' + to), file.size);
       } catch (err) { handleErr(err); }
       finally { setBusy(false); currentAbort = null; }
@@ -582,6 +611,100 @@
     byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { abortCurrent(); });
   }
 
+  /* ================= gif splitter (GIF -> frames ZIP) ================= */
+  function initGifSplitter() {
+    var input = byId('gifInput'), zone = byId('uploadZone');
+    var file = null;
+    setupDropZone(zone, input, function (files) {
+      file = files[0];
+      byId('fileNameHint') && (byId('fileNameHint').textContent = file.name + ' (' + fmtSize(file.size) + ')');
+    });
+    byId('convertBtn').addEventListener('click', async function () {
+      hideError();
+      if (!file) { showError('noframes'); return; }
+      abortCurrent();
+      var ac = new AbortController(); currentAbort = ac;
+      setBusy(true);
+      try {
+        var every = numVal('everyN', 1);
+        showProgress('reading', 0.05);
+        var dec = await C.gifDecodeFrames(file, { onProgress: progressCb('reading'), signal: ac.signal });
+        var frames = dec.frames;
+        if (every > 1) frames = C.framesThin(frames, every);
+        if (!frames.length) { showError('noframes'); setBusy(false); return; }
+        var base = (file.name || 'gif').replace(/\.[a-z0-9]+$/i, '');
+        var entries = [];
+        showProgress('composing', 0.3);
+        for (var i = 0; i < frames.length; i++) {
+          C.checkAbort(ac.signal);
+          var pngAB = window.UPNG.encode([frames[i].rgba], frames[i].width, frames[i].height, 256, [100]);
+          var nm = (i < 9 ? '0' : '') + (i + 1);
+          entries.push({ name: base + '-frame-' + nm + '.png', data: new Uint8Array(pngAB) });
+          showProgress('composing', 0.3 + 0.6 * ((i + 1) / frames.length));
+          if (i % 3 === 2) await C.yieldToMain();
+        }
+        showProgress('encoding', 0.95);
+        var zip = C.makeZip(entries);
+        finishConversion(zip, base + '-frames.zip', file.size);
+      } catch (err) { handleErr(err); }
+      finally { setBusy(false); currentAbort = null; }
+    });
+    byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { abortCurrent(); });
+  }
+
+  /* ================= video editor (cut / resize / speed -> MP4/WebM) ================= */
+  function initVideoEditor() {
+    var input = byId('videoInput'), zone = byId('uploadZone');
+    var video = byId('sourceVideo');
+    var file = null;
+    setupDropZone(zone, input, function (files) {
+      file = files[0];
+      hideError();
+      var url = URL.createObjectURL(file);
+      video.src = url;
+      video.style.display = 'none';
+      video.onerror = function () { showError('badvideo'); byId('fileNameHint') && (byId('fileNameHint').textContent = ''); };
+      video.addEventListener('loadedmetadata', function () {
+        var w = byId('outWidth'); if (w) w.value = Math.min(480, video.videoWidth);
+        var end = byId('endSec');
+        if (end && isFinite(video.duration) && !end.value) end.value = Math.round(video.duration);
+      });
+      byId('fileNameHint') && (byId('fileNameHint').textContent = file.name + ' (' + fmtSize(file.size) + ')');
+    });
+    byId('convertBtn').addEventListener('click', async function () {
+      hideError();
+      if (!file) { showError('badvideo'); return; }
+      if (video.readyState < 1 || !isFinite(video.duration) || !video.duration) { showError('badvideo'); return; }
+      abortCurrent();
+      var ac = new AbortController(); currentAbort = ac;
+      setBusy(true);
+      try {
+        var width = Math.min(numVal('outWidth', 480), 800);
+        var startSec = numVal('startSec', 0);
+        var endSec = numVal('endSec', 0);
+        var span = (endSec > startSec ? endSec : video.duration) - startSec;
+        if (span < 0.05) { showError('badvideo'); setBusy(false); return; }
+        var speedF = byId('speedFactor') ? parseFloat(byId('speedFactor').value) : 1;
+        var fps = 15;
+        var count = Math.min(400, Math.floor(span * fps));
+        showProgress('extracting', 0.02);
+        var ex = await C.videoExtractFrames(video, {
+          maxWidth: width, count: count, fps: fps,
+          startSec: startSec, endSec: endSec > startSec ? endSec : 0,
+          onProgress: progressCb('extracting'), signal: ac.signal
+        });
+        var frames = ex.frames;
+        if (speedF !== 1) frames = C.framesSpeed(frames, speedF);
+        showProgress('recording', 0.5);
+        var res = await C.framesToVideo(frames, { onProgress: progressCb('recording'), signal: ac.signal });
+        var ext = (res.blob.type || '').indexOf('mp4') >= 0 ? '.mp4' : '.webm';
+        finishConversion(res.blob, defaultFname(file, ext), file.size);
+      } catch (err) { handleErr(err); }
+      finally { setBusy(false); currentAbort = null; }
+    });
+    byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { abortCurrent(); });
+  }
+
   /* ---------- shared finish/error ---------- */
   function finishConversion(blob, name, origBytes) {
     showResult(blob, name);
@@ -621,6 +744,8 @@
     else if (page === 'format-converter') initFormatConverter();
     else if (page === 'image-processor') initImageProcessor();
     else if (page === 'add-text') initAddText();
+    else if (page === 'gif-splitter') initGifSplitter();
+    else if (page === 'video-editor') initVideoEditor();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', dispatch);
   else dispatch();
