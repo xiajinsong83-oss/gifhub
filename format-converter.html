@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Format Converter - GIF, APNG, WebP, MP4, WebM, PNG, JPG</title>
+<meta name="description" content="Convert between GIF, APNG, WebP, PNG, JPG, MP4 and WebM formats for free. 100% browser-side processing.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://laserportal.cn/format-converter.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GIFMP4 Format Workshop">
+<meta property="og:title" content="Format Converter - GIF, APNG, WebP, MP4, WebM, PNG, JPG">
+<meta property="og:description" content="Convert between GIF, APNG, WebP, PNG, JPG, MP4 and WebM formats for free. 100% browser-side processing.">
+<meta property="og:url" content="https://laserportal.cn/format-converter.html">
+<meta property="og:image" content="https://laserportal.cn/og-cover.png">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="zh_CN">
+<meta property="og:locale:alternate" content="zh_TW">
+<meta property="og:locale:alternate" content="ja_JP">
+<meta property="og:locale:alternate" content="ko_KR">
+<meta property="og:locale:alternate" content="es_ES">
+<meta property="og:locale:alternate" content="fr_FR">
+<meta property="og:locale:alternate" content="de_DE">
+<meta property="og:locale:alternate" content="pt_BR">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Format Converter - GIF, APNG, WebP, MP4, WebM, PNG, JPG">
+<meta name="twitter:description" content="Convert between GIF, APNG, WebP, PNG, JPG, MP4 and WebM formats for free. 100% browser-side processing.">
+<meta name="twitter:image" content="https://laserportal.cn/og-cover.png">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png">
+<link rel="stylesheet" href="assets/css/main.css">
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3866829862674413" crossorigin="anonymous"></script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "name": "GIFMP4 Format Workshop", "url": "https://laserportal.cn", "inLanguage": ["en", "zh-CN", "zh-TW", "ja", "ko", "es", "fr", "de", "pt"]}, {"@type": "WebPage", "url": "https://laserportal.cn/format-converter.html", "name": "Format Converter - GIF, APNG, WebP, MP4, WebM, PNG, JPG", "description": "Convert between GIF, APNG, WebP, PNG, JPG, MP4 and WebM formats for free. 100% browser-side processing.", "isPartOf": {"@type": "WebSite", "name": "GIFMP4 Format Workshop", "url": "https://laserportal.cn"}}]}</script>
+</head>
+<body data-page="format-converter" data-seo="convert">
+<main>
+
+<div class="page">
+<h1 data-i18n="tool_convert">Format Converter</h1>
+<p class="desc" data-i18n="tool_convert_desc">Convert between GIF, APNG, WebP, PNG, JPG, MP4 and WebM.</p>
+<div class="panel"><h2 data-i18n="params">params</h2><div class="upload-zone" id="uploadZone">
+  <div class="big" data-i18n="up_drop">%s</div>
+  <div class="hint" data-i18n="hero_upload">%s</div>
+  <div class="hint" id="fileNameHint" style="margin-top:8px;color:var(--pine);font-weight:600;"></div>
+  <input type="file" id="convInput" >
+</div><div class="params"><div class="field"><label data-i18n="to">To format</label><select id="toFormat"><option value="gif">GIF</option><option value="apng">APNG</option><option value="webp">WebP</option><option value="png">PNG</option><option value="jpg">JPG</option><option value="mp4">MP4</option><option value="webm">WebM</option></select></div></div><div class="actions">
+<button class="btn" id="convertBtn" data-i18n="convert_btn">Convert</button>
+<button class="btn ghost" id="cancelBtn" style="display:none" data-i18n="cancel_btn">Cancel</button>
+</div><div class="progress-wrap" id="progressWrap">
+<div class="progress-stage" id="progressStage" data-i18n="converting">Converting…</div>
+<div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+</div><div class="result" id="resultWrap">
+<div class="result-card">
+<div class="file-name" id="fileName"></div>
+<div class="file-size" id="fileSize"></div>
+<a class="btn" id="downloadBtn" data-i18n="download" style="margin-top:12px;display:inline-block;">Download</a>
+<img class="preview" id="previewImg" style="display:none;" alt="result">
+</div>
+</div><div class="error-card" id="errorCard">
+<h4 data-i18n="error_title">Conversion failed</h4>
+<p id="errorMsg"></p>
+<button class="btn danger" id="retryBtn" style="margin-top:10px" data-i18n="retry">Retry</button>
+</div><div class="warn-card" id="warnCard">
+<p id="warnMsg"></p>
+<div class="actions" style="margin-top:10px">
+<button class="btn" id="warnYes" data-i18n="warn_yes">Lower settings</button>
+<button class="btn ghost" id="warnNo" data-i18n="warn_no">Keep going</button>
+</div>
+</div></div>
+</div>
+
+</main>
+<div class="ad-slot" aria-label="Advertisement"></div>
+
+<script src="assets/js/lib/omggif.browser.js"></script>
+<script src="assets/js/lib/neuquant.browser.js"></script>
+<script src="assets/js/lib/pako.min.js"></script>
+<script src="assets/js/lib/upng.js"></script>
+<script src="assets/js/convert-core.js"></script>
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/site.js"></script>
+<script src="assets/js/tools.js"></script>
+
+</body>
+</html>
