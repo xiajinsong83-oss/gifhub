@@ -92,9 +92,14 @@
 
     setupDropZone(zone, input, function (files) {
       file = files[0];
+      hideError();
       var url = URL.createObjectURL(file);
       video.src = url;
       video.style.display = 'none';
+      video.onerror = function () {
+        showError('badvideo');
+        byId('fileNameHint') && (byId('fileNameHint').textContent = '');
+      };
       video.addEventListener('loadedmetadata', function () {
         var w = byId('outWidth'); if (w) w.value = Math.min(480, video.videoWidth);
         var est = byId('estimate');
@@ -118,6 +123,7 @@
     convertBtn.addEventListener('click', async function () {
       hideError();
       if (!file) { showError('badvideo'); return; }
+      if (video.readyState < 1 || !isFinite(video.duration) || !video.duration) { showError('badvideo'); return; }
       abortCurrent();
       var ac = new AbortController(); currentAbort = ac;
       setBusy(true);
