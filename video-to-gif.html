@@ -30,22 +30,23 @@
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png">
-<link rel="stylesheet" href="assets/css/main.css">
+<link rel="stylesheet" href="assets/css/main-v3.css">
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3866829862674413" crossorigin="anonymous"></script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "name": "GIFMP4 Format Workshop", "url": "https://laserportal.cn", "inLanguage": ["en", "zh-CN", "zh-TW", "ja", "ko", "es", "fr", "de", "pt"]}, {"@type": "WebPage", "url": "https://laserportal.cn/video-to-gif.html", "name": "Video to GIF - Free Online Converter", "description": "Convert MP4, WebM or MOV video to animated GIF in seconds, right in your browser. Free, private, no upload.", "isPartOf": {"@type": "WebSite", "name": "GIFMP4 Format Workshop", "url": "https://laserportal.cn"}}]}</script>
 </head>
 <body data-page="video-to-gif" data-seo="v2g">
+<div class="ad-slot" aria-label="Advertisement"></div>
 <main>
 
 <div class="page">
 <h1 data-i18n="tool_video2gif">Video to GIF</h1>
 <p class="desc" data-i18n="tool_video2gif_desc">Turn any video into an animated GIF.</p>
-<div class="panel"><h2 data-i18n="params">params</h2><div class="upload-zone" id="uploadZone">
+<div class="panel"><h2 data-i18n="params">params</h2><label class="upload-zone" id="uploadZone" for="videoInput">
   <div class="big" data-i18n="up_drop">%s</div>
   <div class="hint" data-i18n="up_video">%s</div>
-  <div class="hint" id="fileNameHint" style="margin-top:8px;color:var(--pine);font-weight:600;"></div>
+  <div class="hint" id="fileNameHint" style="margin-top:8px;color:var(--blue);font-weight:600;"></div>
   <input type="file" id="videoInput" accept="video/*">
-</div><video id="sourceVideo" style="display:none" playsinline muted preload="metadata"></video><div class="params"><div class="field"><label data-i18n="out_width">out_width</label>
+</label><video id="sourceVideo" style="display:none" playsinline muted preload="metadata"></video><div class="params"><div class="field"><label data-i18n="out_width">out_width</label>
 <input type="number" id="outWidth" value="480" min="64" max="800" step="1"></div><div class="field"><label data-i18n="fps">fps</label>
 <input type="number" id="fps" value="10" min="2" max="30" step="1"></div><div class="field"><label data-i18n="max_frames">max_frames</label>
 <input type="number" id="maxFrames" value="300" min="20" max="600" step="1"></div><div class="field check"><input type="checkbox" id="lightMode"><label data-i18n="lightweight">lightweight</label></div></div><div class="estimate" id="estimate"></div><div class="actions">
@@ -81,10 +82,10 @@
 <script src="assets/js/lib/neuquant.browser.js"></script>
 <script src="assets/js/lib/pako.min.js"></script>
 <script src="assets/js/lib/upng.js"></script>
-<script src="assets/js/convert-core.js"></script>
-<script src="assets/js/i18n.js"></script>
-<script src="assets/js/site.js"></script>
-<script src="assets/js/tools.js"></script>
+<script src="assets/js/convert-core-v2.js"></script>
+<script src="assets/js/i18n-v3.js"></script>
+<script src="assets/js/site-v3.js"></script>
+<script src="assets/js/tools-v2.js"></script>
 
 </body>
 </html>

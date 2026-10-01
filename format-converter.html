@@ -30,22 +30,23 @@
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png">
-<link rel="stylesheet" href="assets/css/main.css">
+<link rel="stylesheet" href="assets/css/main-v3.css">
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3866829862674413" crossorigin="anonymous"></script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "name": "GIFMP4 Format Workshop", "url": "https://laserportal.cn", "inLanguage": ["en", "zh-CN", "zh-TW", "ja", "ko", "es", "fr", "de", "pt"]}, {"@type": "WebPage", "url": "https://laserportal.cn/format-converter.html", "name": "Format Converter - GIF, APNG, WebP, MP4, WebM, PNG, JPG", "description": "Convert between GIF, APNG, WebP, PNG, JPG, MP4 and WebM formats for free. 100% browser-side processing.", "isPartOf": {"@type": "WebSite", "name": "GIFMP4 Format Workshop", "url": "https://laserportal.cn"}}]}</script>
 </head>
 <body data-page="format-converter" data-seo="convert">
+<div class="ad-slot" aria-label="Advertisement"></div>
 <main>
 
 <div class="page">
 <h1 data-i18n="tool_convert">Format Converter</h1>
 <p class="desc" data-i18n="tool_convert_desc">Convert between GIF, APNG, WebP, PNG, JPG, MP4 and WebM.</p>
-<div class="panel"><h2 data-i18n="params">params</h2><div class="upload-zone" id="uploadZone">
+<div class="panel"><h2 data-i18n="params">params</h2><label class="upload-zone" id="uploadZone" for="convInput">
   <div class="big" data-i18n="up_drop">%s</div>
   <div class="hint" data-i18n="hero_upload">%s</div>
-  <div class="hint" id="fileNameHint" style="margin-top:8px;color:var(--pine);font-weight:600;"></div>
+  <div class="hint" id="fileNameHint" style="margin-top:8px;color:var(--blue);font-weight:600;"></div>
   <input type="file" id="convInput" >
-</div><div class="params"><div class="field"><label data-i18n="to">To format</label><select id="toFormat"><option value="gif">GIF</option><option value="apng">APNG</option><option value="webp">WebP</option><option value="png">PNG</option><option value="jpg">JPG</option><option value="mp4">MP4</option><option value="webm">WebM</option></select></div></div><div class="actions">
+</label><div class="params"><div class="field"><label data-i18n="to">To format</label><select id="toFormat"><option value="gif">GIF</option><option value="apng">APNG</option><option value="webp">WebP</option><option value="png">PNG</option><option value="jpg">JPG</option><option value="mp4">MP4</option><option value="webm">WebM</option></select></div></div><div class="actions">
 <button class="btn" id="convertBtn" data-i18n="convert_btn">Convert</button>
 <button class="btn ghost" id="cancelBtn" style="display:none" data-i18n="cancel_btn">Cancel</button>
 </div><div class="progress-wrap" id="progressWrap">
@@ -78,10 +79,10 @@
 <script src="assets/js/lib/neuquant.browser.js"></script>
 <script src="assets/js/lib/pako.min.js"></script>
 <script src="assets/js/lib/upng.js"></script>
-<script src="assets/js/convert-core.js"></script>
-<script src="assets/js/i18n.js"></script>
-<script src="assets/js/site.js"></script>
-<script src="assets/js/tools.js"></script>
+<script src="assets/js/convert-core-v2.js"></script>
+<script src="assets/js/i18n-v3.js"></script>
+<script src="assets/js/site-v3.js"></script>
+<script src="assets/js/tools-v2.js"></script>
 
 </body>
 </html>
