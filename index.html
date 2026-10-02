@@ -50,7 +50,7 @@
       <p class="hero-sub" data-i18n="hero_sub1">Convert, edit, compress, add text — GIF, video and image tools, all in your browser.</p>
       <p class="hero-sub" data-i18n="hero_sub2">No uploads, no registration, ready to use.</p>
       <div class="hero-actions">
-        <button class="btn-hero" id="heroStartBtn" type="button" data-i18n="hero_btn1">Start Converting</button>
+        <a class="btn-hero" href="video-to-gif.html" data-i18n="hero_btn1">Start Converting</a>
         <a class="btn-hero outline" href="#tools" data-i18n="hero_btn2">View All Tools</a>
       </div>
     </div>
@@ -75,74 +75,6 @@
     <input type="file" id="homeFile" accept="video/*,image/*" style="display:none">
   </div>
 </div>
-
-<div class="hc-overlay" id="homeConvertOverlay" aria-hidden="true">
-  <div class="hc-panel" role="dialog" aria-label="Quick Convert">
-    <div class="hc-head">
-      <h2 data-i18n="home_title">Quick Convert</h2>
-      <span class="hc-file" id="hcFileInfo"></span>
-      <button class="hc-close" id="hcClose" type="button" aria-label="Close">&#10005;</button>
-    </div>
-    <p class="hc-hint" id="hcHint" data-i18n="home_hint">Convert right here — no page jump, no upload. Pick a file and start.</p>
-    <div class="tool-old" style="margin-bottom:0">
-      <div class="tool-left">
-        <div class="tool-module">
-          <h2 data-i18n="mod_convert">Convert</h2>
-          <div class="params">
-            <div class="field"><label data-i18n="to">To format</label>
-              <select id="toFormat">
-                <option value="gif">GIF</option>
-                <option value="apng">APNG</option>
-                <option value="webp">WebP</option>
-                <option value="png">PNG</option>
-                <option value="jpg">JPG</option>
-                <option value="mp4">MP4</option>
-                <option value="webm">WebM</option>
-              </select>
-            </div>
-            <div class="field" style="display:flex;align-items:flex-end;justify-content:flex-end;">
-              <button class="btn ghost" id="hcPickBtn" type="button" data-i18n="home_replace">Replace File</button>
-              <input type="file" id="hcFileInput" accept="video/*,image/*" style="display:none">
-            </div>
-          </div>
-          <div class="actions">
-            <button class="btn" id="convertBtn" type="button" data-i18n="convert_btn">Convert</button>
-            <button class="btn ghost" id="cancelBtn" type="button" style="display:none" data-i18n="cancel_btn">Cancel</button>
-          </div>
-          <div class="progress-wrap" id="progressWrap" style="display:none">
-            <div class="progress-head"><span class="progress-stage" id="progressStage"></span><span class="progress-pct" id="progressPct">0%</span></div>
-            <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
-          </div>
-          <div class="error-card" id="errorCard" style="display:none">
-            <h4 data-i18n="error_title">Conversion failed</h4>
-            <p id="errorMsg"></p>
-            <button class="btn danger" id="retryBtn" type="button" style="margin-top:10px" data-i18n="retry">Retry</button>
-          </div>
-          <div class="warn-card" id="warnCard" style="display:none">
-            <p id="warnMsg"></p>
-            <div class="actions" style="margin-top:10px">
-              <button class="btn" id="warnYes" type="button" data-i18n="warn_yes">Lower settings</button>
-              <button class="btn ghost" id="warnNo" type="button" data-i18n="warn_no">Keep going</button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="tool-right">
-        <h3 class="result-title" data-i18n="result_title">Output Result</h3>
-        <div class="preview-placeholder" id="hcPlaceholder" data-i18n="preview_placeholder">Preview</div>
-        <img id="sourcePreview" class="source-preview" style="display:none" alt="">
-        <div class="result" id="resultWrap">
-          <div class="result-card">
-            <div class="file-name" id="fileName"></div>
-            <div class="file-size" id="fileSize"></div>
-            <a class="btn" id="downloadBtn" data-i18n="download" style="margin-top:12px;display:inline-block;">Download</a>
-            <img class="preview" id="previewImg" style="display:none;" alt="result">
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
 <div class="tools-section" id="tools">
   <h2 class="section-title" data-i18n="explore_title">Explore the Format Workshop</h2>
   <p class="section-desc" data-i18n="explore_desc">Professional tools, all in one place, all processed locally.</p>
@@ -162,8 +94,6 @@
 <script>
 (function(){
   function go(file){
-    if (window.GIFMP4Home && window.GIFMP4Home.open) { window.GIFMP4Home.open(file); return; }
-    // Fallback only if the quick-convert module failed to load.
     var n=(file.name||'').toLowerCase(), t=file.type||'';
     if(t.indexOf('video')===0||/\.(mp4|webm|mov|avi|mkv)$/.test(n)) location.href='video-to-gif.html';
     else if(t==='image/gif'||/\.gif$/.test(n)) location.href='gif-editor.html';
@@ -171,11 +101,8 @@
     else location.href='format-converter.html';
   }
   var z=document.getElementById('homeUpload'), inp=document.getElementById('homeFile');
-  var hb=document.getElementById('heroStartBtn');
   if(!z||!inp) return;
-  function pick(){ inp.click(); }
-  z.addEventListener('click', pick);
-  if(hb) hb.addEventListener('click', pick);
+  z.addEventListener('click', function(){ inp.click(); });
   z.addEventListener('dragover', function(e){ e.preventDefault(); z.className='hero-upload drag'; });
   z.addEventListener('dragleave', function(){ z.className='hero-upload'; });
   z.addEventListener('drop', function(e){ e.preventDefault(); z.className='hero-upload'; var f=e.dataTransfer&&e.dataTransfer.files[0]; if(f) go(f); });
@@ -194,7 +121,6 @@
 <script src="assets/js/i18n-v8.js"></script>
 <script src="assets/js/site-v4.js"></script>
 <script src="assets/js/tools-v7.js"></script>
-<script src="assets/js/home-converter.js"></script>
 
 </body>
 </html>
