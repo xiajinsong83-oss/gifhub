@@ -38,13 +38,28 @@
   }
   function setupDropZone(zone, input, onFiles) {
     zone.addEventListener('click', function () { input.click(); });
-    input.addEventListener('change', function () { if (input.files && input.files.length) onFiles(input.files); });
+    input.addEventListener('change', function () { if (input.files && input.files.length) handleFiles(input.files); });
     zone.addEventListener('dragover', function (e) { e.preventDefault(); zone.classList.add('drag'); });
     zone.addEventListener('dragleave', function () { zone.classList.remove('drag'); });
     zone.addEventListener('drop', function (e) {
       e.preventDefault(); zone.classList.remove('drag');
-      if (e.dataTransfer.files && e.dataTransfer.files.length) onFiles(e.dataTransfer.files);
+      if (e.dataTransfer.files && e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
     });
+    function handleFiles(list) {
+      var arr = Array.prototype.slice.call(list || []);
+      var total = 0, tooBig = null;
+      for (var i = 0; i < arr.length; i++) {
+        total += arr[i].size;
+        if (arr[i].size > MAX_INPUT_BYTES && !tooBig) tooBig = arr[i];
+      }
+      lastInputBytes = total;
+      if (tooBig) {
+        hideError();
+        showError('file_too_large', { size: fmtSize(tooBig.size), max: '200MB' });
+        return;
+      }
+      onFiles(list);
+    }
   }
   function defaultFname(file, ext) {
     var base = file.name.replace(/\.[^.]+$/, '') || 'converted';
@@ -98,12 +113,84 @@
     if (btn) { btn.disabled = busy; btn.textContent = busy ? (label || T('converting')) : T('convert_btn'); }
     var cancel = byId('cancelBtn');
     if (cancel) cancel.style.display = busy ? 'inline-block' : 'none';
+    if (busy) {
+      converting = true;
+      userCancelled = false;
+      startWatchdog(lastInputBytes);
+    } else {
+      converting = false;
+      clearWatchdog();
+    }
   }
   function numVal(id, fallback) { var v = parseInt(byId(id).value, 10); return isFinite(v) && v > 0 ? v : fallback; }
 
   /* AbortController holder per page */
   var currentAbort = null;
   function abortCurrent() { if (currentAbort) { currentAbort.abort(); currentAbort = null; } }
+
+  /* ---------- shared safety net: size limit, timeout watchdog, crash fallback ---------- */
+  var MAX_INPUT_BYTES = 200 * 1024 * 1024;      // hard prompt above 200MB
+  var lastInputBytes = 0;                        // size of the files currently loaded
+  var converting = false;                        // true while a conversion is running
+  var userCancelled = false;                     // set when the user presses Cancel
+  var watchdogTimer = null;
+
+  function conversionTimeoutMs(bytes) {
+    var mb = Math.max(1, (bytes || 1) / 1048576);
+    var t = Math.round(mb * 6000);               // ~6s per MB of input, generous
+    return Math.max(120000, Math.min(900000, t)); // 2 min .. 15 min
+  }
+  function clearWatchdog() {
+    if (watchdogTimer) { clearTimeout(watchdogTimer); watchdogTimer = null; }
+  }
+  function startWatchdog(bytes) {
+    clearWatchdog();
+    watchdogTimer = setTimeout(function () {
+      watchdogTimer = null;
+      if (!converting) return;
+      converting = false;
+      abortCurrent();
+      hideProgress();
+      showError('timeout');
+      setBusy(false);
+    }, conversionTimeoutMs(bytes));
+  }
+  function crashGuard() {
+    if (!converting) return;
+    if (userCancelled) {
+      // user pressed Cancel; just reset the UI (the running task may never settle)
+      converting = false; clearWatchdog(); hideProgress(); setBusy(false);
+      return;
+    }
+    var card = byId('errorCard');
+    if (card && card.style.display === 'block') return; // keep the visible message
+    converting = false;
+    clearWatchdog();
+    try { abortCurrent(); } catch (e) {}
+    hideProgress();
+    showError('crash');
+    setBusy(false);
+  }
+  window.addEventListener('error', function (e) {
+    if (e && e.message && /Script error/i.test(e.message)) return;   // cross-origin noise
+    var f = e && e.filename ? String(e.filename) : '';
+    if (f && f.indexOf(window.location.origin) !== 0) return;        // third-party script noise
+    crashGuard();
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    var r = e && e.reason;
+    if (!r) return;
+    if (r.name === 'AbortError' || (r.message && r.message === 'Aborted')) return; // intentional
+    // Only surface rejections that come from our own scripts or conversion errors.
+    var stack = r.stack ? String(r.stack) : '';
+    var msg = r.message ? String(r.message) : '';
+    if (stack && stack.indexOf(window.location.origin) === -1 && !/NoFrames|BadVideo|BadImage|OutputTooLarge|NoRecorder/i.test(msg)) return;
+    crashGuard();
+  });
+  function bindRetry() {
+    var rb = byId('retryBtn'), cb = byId('convertBtn');
+    if (rb && cb) rb.addEventListener('click', function () { cb.click(); });
+  }
 
   /* ---------- progress mapping helper ---------- */
   function progressCb(stage) {
@@ -189,7 +276,7 @@
         setBusy(false); currentAbort = null;
       }
     });
-    byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { abortCurrent(); });
+    byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { userCancelled = true; abortCurrent(); hideProgress(); setBusy(false); });
   }
 
   /* ================= gif-maker (images -> GIF) ================= */
@@ -245,7 +332,7 @@
       } catch (err) { handleErr(err); }
       finally { setBusy(false); currentAbort = null; }
     });
-    byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { abortCurrent(); });
+    byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { userCancelled = true; abortCurrent(); hideProgress(); setBusy(false); });
   }
 
   /* ================= gif-editor ================= */
@@ -293,7 +380,7 @@
       } catch (err) { handleErr(err); }
       finally { setBusy(false); currentAbort = null; }
     });
-    byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { abortCurrent(); });
+    byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { userCancelled = true; abortCurrent(); hideProgress(); setBusy(false); });
   }
 
   /* ================= gif-optimizer ================= */
@@ -329,10 +416,30 @@
       } catch (err) { handleErr(err); }
       finally { setBusy(false); currentAbort = null; }
     });
-    byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { abortCurrent(); });
+    byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { userCancelled = true; abortCurrent(); hideProgress(); setBusy(false); });
   }
 
   /* ================= format converter ================= */
+  function guessType(f) {
+    var n = (f.name || '').toLowerCase();
+    var t = (f.type || '');
+    if (t.indexOf('video') === 0 || /\.(mp4|webm|mov|avi|mkv)$/.test(n)) return 'video';
+    if (t === 'image/gif' || /\.gif$/.test(n)) return 'gif';
+    if (t === 'image/png' || /\.png$/.test(n)) return 'png';
+    if (t === 'image/jpeg' || /\.jpe?g$/.test(n)) return 'jpg';
+    if (t === 'image/webp' || /\.webp$/.test(n)) return 'webp';
+    if (t === 'image/apng' || /\.apng$/.test(n)) return 'apng';
+    if (t.indexOf('image') === 0) return 'image';
+    return 'image';
+  }
+  function defaultTarget(src) {
+    switch (src) {
+      case 'video': return 'gif';
+      case 'gif': return 'mp4';
+      case 'png': case 'jpg': case 'webp': return 'gif';
+      default: return 'gif';
+    }
+  }
   function initFormatConverter() {
     var input = byId('convInput'), zone = byId('uploadZone');
     var file = null;
@@ -348,25 +455,6 @@
         if (def) sel.value = def;
       }
     });
-    function guessType(f) {
-      var n = (f.name || '').toLowerCase();
-      var t = (f.type || '');
-      if (t.indexOf('video') === 0 || /\.(mp4|webm|mov|avi|mkv)$/.test(n)) return 'video';
-      if (t === 'image/gif' || /\.gif$/.test(n)) return 'gif';
-      if (t === 'image/png' || /\.png$/.test(n)) return 'png';
-      if (t === 'image/jpeg' || /\.jpe?g$/.test(n)) return 'jpg';
-      if (t === 'image/webp' || /\.webp$/.test(n)) return 'webp';
-      if (t === 'image/apng' || /\.apng$/.test(n)) return 'apng';
-      return 'image';
-    }
-    function defaultTarget(src) {
-      switch (src) {
-        case 'video': return 'gif';
-        case 'gif': return 'mp4';
-        case 'png': case 'jpg': case 'webp': return 'gif';
-        default: return 'gif';
-      }
-    }
     byId('convertBtn').addEventListener('click', async function () {
       hideError();
       if (!file) { showError('unknown'); return; }
@@ -383,11 +471,12 @@
       } catch (err) { handleErr(err); }
       finally { setBusy(false); currentAbort = null; }
     });
-    byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { abortCurrent(); });
+    byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { userCancelled = true; abortCurrent(); hideProgress(); setBusy(false); });
   }
 
-  async function runConversion(file, src, to, signal) {
+  async function runConversion(file, src, to, signal, onProgress) {
     var Tf = function (k, v) { return T(k, v); };
+    function prog(stage) { return onProgress ? function (p) { onProgress(p, stage); } : null; }
     // image -> gif
     if ((src === 'png' || src === 'jpg' || src === 'webp' || src === 'image') && to === 'gif') {
       var f = await C.imageFileToFrame(file, 480);
@@ -414,14 +503,14 @@
     }
     // gif -> apng
     if (src === 'gif' && to === 'apng') {
-      var g1 = await C.gifDecodeFrames(file, { signal: signal });
+      var g1 = await C.gifDecodeFrames(file, { signal: signal, onProgress: prog('reading') });
       if (g1.frames.length === 0) { showError('noframes'); return null; }
       var b1 = await C.encodeApng(g1.frames, { signal: signal });
       return { blob: b1 };
     }
     // gif -> png/jpg/webp (first frame)
     if (src === 'gif' && (to === 'png' || to === 'jpg' || to === 'webp')) {
-      var g2 = await C.gifDecodeFrames(file, { signal: signal });
+      var g2 = await C.gifDecodeFrames(file, { signal: signal, onProgress: prog('reading') });
       if (!g2.frames.length) { showError('noframes'); return null; }
       var c2 = C.createCanvas(g2.width, g2.height);
       var cx2 = c2.getContext('2d');
@@ -434,14 +523,14 @@
     }
     // gif -> mp4/webm (animate on canvas, record)
     if (src === 'gif' && (to === 'mp4' || to === 'webm')) {
-      var g3 = await C.gifDecodeFrames(file, { signal: signal });
+      var g3 = await C.gifDecodeFrames(file, { signal: signal, onProgress: prog('reading') });
       if (!g3.frames.length) { showError('noframes'); return null; }
       if (to === 'mp4' && !MediaRecorder.isTypeSupported('video/mp4')) {
         // fall back to webm with a note
-        var r3 = await C.framesToVideo(g3.frames, { signal: signal });
+        var r3 = await C.framesToVideo(g3.frames, { signal: signal, onProgress: prog('recording') });
         return { blob: r3.blob, note: 'webm' };
       }
-      var r4 = await C.framesToVideo(g3.frames, { signal: signal });
+      var r4 = await C.framesToVideo(g3.frames, { signal: signal, onProgress: prog('recording') });
       return { blob: r4.blob };
     }
     // video -> gif
@@ -455,8 +544,8 @@
         vid.addEventListener('error', rej, { once: true });
         setTimeout(res, 5000);
       });
-      var ex = await C.videoExtractFrames(vid, { maxWidth: 480, count: Math.min(300, Math.floor((isFinite(vid.duration) ? vid.duration : 5) * 10)), fps: 10, signal: signal });
-      var enc = await C.encodeGif(ex.frames, { signal: signal });
+      var ex = await C.videoExtractFrames(vid, { maxWidth: 480, count: Math.min(300, Math.floor((isFinite(vid.duration) ? vid.duration : 5) * 10)), fps: 10, signal: signal, onProgress: prog('extracting') });
+      var enc = await C.encodeGif(ex.frames, { signal: signal, onProgress: prog('encoding') });
       URL.revokeObjectURL(url);
       return { blob: enc.blob };
     }
@@ -471,7 +560,7 @@
         vid2.addEventListener('error', rej, { once: true });
         setTimeout(res, 5000);
       });
-      var ex2 = await C.videoExtractFrames(vid2, { maxWidth: 480, count: Math.min(300, Math.floor((isFinite(vid2.duration) ? vid2.duration : 5) * 10)), fps: 10, signal: signal });
+      var ex2 = await C.videoExtractFrames(vid2, { maxWidth: 480, count: Math.min(300, Math.floor((isFinite(vid2.duration) ? vid2.duration : 5) * 10)), fps: 10, signal: signal, onProgress: prog('extracting') });
       var b2 = await C.encodeApng(ex2.frames, { signal: signal });
       URL.revokeObjectURL(url2);
       return { blob: b2 };
@@ -487,8 +576,8 @@
         vid3.addEventListener('error', rej, { once: true });
         setTimeout(res, 5000);
       });
-      var ex3 = await C.videoExtractFrames(vid3, { maxWidth: 480, count: Math.min(300, Math.floor((isFinite(vid3.duration) ? vid3.duration : 5) * 10)), fps: 10, signal: signal });
-      var r3 = await C.framesToVideo(ex3.frames, { signal: signal });
+      var ex3 = await C.videoExtractFrames(vid3, { maxWidth: 480, count: Math.min(300, Math.floor((isFinite(vid3.duration) ? vid3.duration : 5) * 10)), fps: 10, signal: signal, onProgress: prog('extracting') });
+      var r3 = await C.framesToVideo(ex3.frames, { signal: signal, onProgress: prog('recording') });
       URL.revokeObjectURL(url3);
       return { blob: r3.blob };
     }
@@ -562,7 +651,7 @@
       } catch (err) { handleErr(err); }
       finally { setBusy(false); currentAbort = null; }
     });
-    byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { abortCurrent(); });
+    byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { userCancelled = true; abortCurrent(); hideProgress(); setBusy(false); });
   }
 
   /* ================= add text ================= */
@@ -644,7 +733,7 @@
       } catch (err) { handleErr(err); }
       finally { setBusy(false); currentAbort = null; }
     });
-    byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { abortCurrent(); });
+    byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { userCancelled = true; abortCurrent(); hideProgress(); setBusy(false); });
   }
 
   /* ================= gif splitter (GIF -> frames ZIP) ================= */
@@ -686,7 +775,7 @@
       } catch (err) { handleErr(err); }
       finally { setBusy(false); currentAbort = null; }
     });
-    byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { abortCurrent(); });
+    byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { userCancelled = true; abortCurrent(); hideProgress(); setBusy(false); });
   }
 
   /* ================= bulk GIF optimizer ================= */
@@ -749,7 +838,7 @@
       } catch (err) { handleErr(err); }
       finally { setBusy(false); currentAbort = null; }
     });
-    byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { abortCurrent(); });
+    byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { userCancelled = true; abortCurrent(); hideProgress(); setBusy(false); });
   }
 
   /* ================= video editor (cut / resize / speed -> MP4/WebM) ================= */
@@ -800,7 +889,7 @@
       } catch (err) { handleErr(err); }
       finally { setBusy(false); currentAbort = null; }
     });
-    byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { abortCurrent(); });
+    byId('cancelBtn') && byId('cancelBtn').addEventListener('click', function () { userCancelled = true; abortCurrent(); hideProgress(); setBusy(false); });
   }
 
   /* ---------- shared finish/error ---------- */
@@ -811,11 +900,13 @@
   function handleErr(err) {
     if (err && err.name === 'AbortError') { hideProgress(); setBusy(false); return; }
     var key = 'unknown';
-    if (err && err.message === 'NoFrames') key = 'noframes';
-    else if (err && err.message === 'BadVideo') key = 'badvideo';
-    else if (err && err.message === 'BadImage') key = 'badimage';
-    else if (err && err.message === 'OutputTooLarge') key = 'too_large';
-    else if (err && err.message === 'NoRecorder') key = 'norecorder';
+    var msg = err && err.message ? String(err.message) : '';
+    if (msg === 'NoFrames') key = 'noframes';
+    else if (msg === 'BadVideo') key = 'badvideo';
+    else if (msg === 'BadImage') key = 'badimage';
+    else if (msg === 'OutputTooLarge') key = 'too_large';
+    else if (msg === 'NoRecorder') key = 'norecorder';
+    else if (err instanceof RangeError || /alloc|out of memory|too large/i.test(msg)) key = 'too_large';
     showError(key);
   }
   function confirmWarn(n) {
@@ -833,8 +924,31 @@
   }
 
   /* ---------- dispatch ---------- */
-  window.GIFMP4Tools = { initAll: function () { } };
+  window.GIFMP4Tools = {
+    initAll: function () { },
+    runConversion: runConversion,
+    guessType: guessType,
+    defaultTarget: defaultTarget,
+    finish: finishConversion,
+    ui: {
+      fmtSize: fmtSize,
+      showError: showError,
+      hideError: hideError,
+      showProgress: showProgress,
+      hideProgress: hideProgress,
+      showResult: showResult,
+      setBusy: setBusy,
+      setInputBytes: function (b) { lastInputBytes = b || 0; },
+      handleErr: handleErr,
+      confirmWarn: confirmWarn,
+      downloadBlob: downloadBlob,
+      defaultFname: defaultFname,
+      progressCb: progressCb,
+      maxInputBytes: MAX_INPUT_BYTES
+    }
+  };
   function dispatch() {
+    bindRetry();
     var page = document.body.getAttribute('data-page');
     if (page === 'video-to-gif') initVideoToGif();
     else if (page === 'gif-maker') initGifMaker();

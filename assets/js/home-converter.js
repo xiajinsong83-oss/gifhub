@@ -92,9 +92,16 @@
   }
 
   function showOverlay() {
-    overlay.style.display = 'flex';
+    // Inline section: just reveal it in the document flow, no modal overlay,
+    // no body scroll lock (keeps layout stable across all browser engines).
+    overlay.hidden = false;
     overlay.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
+    // Smoothly scroll the panel into view so the user notices it opened.
+    try {
+      overlay.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (e) {
+      try { overlay.scrollIntoView(); } catch (e2) {}
+    }
   }
   function close() {
     if (!overlay) return;
@@ -103,11 +110,11 @@
     if (UI.hideError) UI.hideError();
     if (UI.hideProgress) UI.hideProgress();
     if (UI.setBusy) UI.setBusy(false);
-    overlay.style.display = 'none';
+    overlay.hidden = true;
     overlay.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
     file = null;
   }
+  function isOpen() { return overlay && !overlay.hidden; }
   function resetPanel() {
     var hint = byId('hcHint');
     if (hint) hint.style.display = '';
@@ -146,9 +153,9 @@
     if (!overlay) return;
     var closeBtn = byId('hcClose');
     if (closeBtn) closeBtn.addEventListener('click', close);
-    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    // No click-outside-to-close: this is an inline section, not a modal.
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && overlay.style.display === 'flex') close();
+      if (e.key === 'Escape' && isOpen()) close();
     });
     var cb = byId('convertBtn');
     if (cb) cb.addEventListener('click', convert);

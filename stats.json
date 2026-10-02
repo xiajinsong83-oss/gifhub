@@ -1,0 +1,6 @@
+{
+  "conv": 4,
+  "files": 4,
+  "mb": 77.6,
+  "note": "Site-wide community conversion totals. The page refreshes this counter once per day from the remote counterapi.dev namespace and increments it on every successful conversion. You can update this file by hand to seed or adjust the baseline; the remote counter value will win once it grows above these numbers."
+}

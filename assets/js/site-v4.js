@@ -111,7 +111,9 @@
     var grid = el('div', 'stats-grid', null);
     grid.id = 'statsGrid';
     stats.appendChild(grid);
-    stats.appendChild(el('div', 'stats-local', window.GIFMP4I18N.t('stat_local')));
+    var localNote = el('div', 'stats-local', window.GIFMP4I18N.t('stat_local'));
+    localNote.setAttribute('data-i18n', 'stat_local');
+    stats.appendChild(localNote);
     inner.appendChild(stats);
     var rights = el('div', 'footer-rights', window.GIFMP4I18N.t('rights'));
     rights.setAttribute('data-i18n', 'rights');
@@ -127,23 +129,132 @@
     renderStats();
   }
 
-  /* ---------- local conversion stats ---------- */
-  var STAT_KEY = 'gifmp4_stats';
-  function getStats() {
-    try { var s = JSON.parse(localStorage.getItem(STAT_KEY)); if (s) return s; } catch (e) {}
-    return { conv: 0, files: 0, mb: 0 };
+  /* ---------- community-wide conversion stats (remote counter, refreshed daily) ----------
+   * Numbers are site-wide totals shared by all visitors, not per-device.
+   * We read the remote counter once per day (cached in localStorage) and
+   * increment it fire-and-forget on each successful conversion. If the
+   * remote endpoint is unreachable we fall back to the bundled stats.json
+   * baseline plus the current session's local increments, so the footer
+   * never breaks and never pretends to be a per-device counter.
+   */
+  var REMOTE_API = 'https://api.counterapi.dev/v1/laserportal-gifmp4';
+  var CACHE_KEY = 'gifmp4_remote_stats_v1';
+  var CACHE_TTL = 24 * 60 * 60 * 1000; // refresh once per day
+  var BASELINE_URL = 'stats.json';
+
+  // In-memory session state. `remote` = last known site-wide total from the
+  // counter / baseline; `localExtra` = increments made on this device since
+  // page load (so the number feels responsive right after a conversion).
+  var remoteStats = { conv: 0, files: 0, mb: 0 };
+  var localExtra = { conv: 0, files: 0, mb: 0 };
+  var remoteLoaded = false;
+
+  function fmtMb(mb) {
+    if (!isFinite(mb) || mb < 0) mb = 0;
+    return mb >= 100 ? Math.round(mb) + ' MB' : mb.toFixed(1) + ' MB';
   }
-  function saveStats(s) { try { localStorage.setItem(STAT_KEY, JSON.stringify(s)); } catch (e) {} }
-  function fmtMb(mb) { return mb >= 100 ? Math.round(mb) + ' MB' : mb.toFixed(1) + ' MB'; }
+
+  function cachedStats() {
+    try {
+      var raw = localStorage.getItem(CACHE_KEY);
+      if (!raw) return null;
+      var c = JSON.parse(raw);
+      if (c && typeof c.t === 'number' && (Date.now() - c.t) < CACHE_TTL && c.s) return c.s;
+    } catch (e) {}
+    return null;
+  }
+  function saveCache(s) {
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ t: Date.now(), s: s })); } catch (e) {}
+  }
+
+  function fetchJson(url, ms) {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var timer = setTimeout(function () { if (!done) { done = true; reject(new Error('timeout')); } }, ms || 4000);
+      fetch(url, { cache: 'no-store' }).then(function (r) {
+        if (!r.ok) throw new Error('http ' + r.status);
+        return r.json();
+      }).then(function (j) {
+        if (done) return; done = true; clearTimeout(timer); resolve(j);
+      }).catch(function (err) {
+        if (done) return; done = true; clearTimeout(timer); reject(err);
+      });
+    });
+  }
+
+  function loadBaseline() {
+    // 1) Render instantly from today's cache (if any).
+    var cached = cachedStats();
+    if (cached) { remoteStats = cached; remoteLoaded = true; renderStats(); }
+
+    // 2) Try the bundled stats.json baseline (always works offline / on the
+    //    same origin). Used as the seed if the remote counter is empty.
+    fetchJson(BASELINE_URL, 2500).then(function (j) {
+      if (!j) return;
+      var base = {
+        conv: parseInt(j.conv, 10) || 0,
+        files: parseInt(j.files, 10) || 0,
+        mb: parseFloat(j.mb) || 0
+      };
+      if (!remoteLoaded) { remoteStats = base; renderStats(); }
+      else {
+        // Remote counter counts everything; only adopt the baseline if the
+        // remote total is still zero / not yet seeded.
+        if (remoteStats.conv === 0 && base.conv > 0) { remoteStats = base; renderStats(); saveCache(remoteStats); }
+      }
+    }).catch(function () {});
+
+    // 3) Try the live remote counter. Take the max() against the bundled
+    //    baseline so a freshly-created remote counter (starting from 0) never
+    //    regresses the number below the seeded stats.json value.
+    Promise.all([
+      fetchJson(REMOTE_API + '/total-conversions/', 3500).catch(function () { return null; }),
+      fetchJson(REMOTE_API + '/total-files/', 3500).catch(function () { return null; }),
+      fetchJson(REMOTE_API + '/total-mb-tenths/', 3500).catch(function () { return null; })
+    ]).then(function (res) {
+      var conv = res[0] && typeof res[0].count === 'number' ? res[0].count : null;
+      var files = res[1] && typeof res[1].count === 'number' ? res[1].count : null;
+      var mbTenths = res[2] && typeof res[2].count === 'number' ? res[2].count : null;
+      if (conv === null && files === null && mbTenths === null) return;
+      // Re-read baseline to combine.
+      var base = { conv: 0, files: 0, mb: 0 };
+      try {
+        var raw = localStorage.getItem(CACHE_KEY);
+        // baseline was already loaded above; reuse remoteStats as it stands.
+      } catch (e) {}
+      remoteStats = {
+        conv: Math.max(remoteStats.conv, conv || 0),
+        files: Math.max(remoteStats.files, files || 0),
+        mb: Math.max(remoteStats.mb, (mbTenths || 0) / 10)
+      };
+      remoteLoaded = true;
+      saveCache(remoteStats);
+      renderStats();
+    }).catch(function () {});
+  }
+
+  function bumpRemote(convDelta, filesDelta, mbTenthsDelta) {
+    // Fire-and-forget. Never blocks UI, never throws.
+    try {
+      if (convDelta > 0) fetch(REMOTE_API + '/total-conversions/up/', { method: 'GET', mode: 'no-cors' }).catch(function () {});
+      if (filesDelta > 0) fetch(REMOTE_API + '/total-files/up/', { method: 'GET', mode: 'no-cors' }).catch(function () {});
+      if (mbTenthsDelta > 0) {
+        fetch(REMOTE_API + '/total-mb-tenths/up/' + mbTenthsDelta + '/', { method: 'GET', mode: 'no-cors' }).catch(function () {});
+      }
+    } catch (e) {}
+  }
+
   function renderStats() {
     var grid = document.getElementById('statsGrid');
     if (!grid) return;
-    var s = getStats();
+    var conv = remoteStats.conv + localExtra.conv;
+    var files = remoteStats.files + localExtra.files;
+    var mb = remoteStats.mb + localExtra.mb;
     grid.innerHTML = '';
     var items = [
-      [window.GIFMP4I18N.t('stat_total'), String(s.conv)],
-      [window.GIFMP4I18N.t('stat_files'), String(s.files)],
-      [window.GIFMP4I18N.t('stat_mb'), fmtMb(s.mb)]
+      [window.GIFMP4I18N.t('stat_total'), String(conv)],
+      [window.GIFMP4I18N.t('stat_files'), String(files)],
+      [window.GIFMP4I18N.t('stat_mb'), fmtMb(mb)]
     ];
     for (var i = 0; i < items.length; i++) {
       var d = el('div', 'stat-item', null);
@@ -155,12 +266,18 @@
     }
   }
   function trackConversion(fileBytes) {
-    var s = getStats();
-    s.conv++;
-    s.files++;
-    if (typeof fileBytes === 'number' && fileBytes > 0) s.mb += fileBytes / 1048576;
-    saveStats(s);
+    // Counted globally: immediately bump the on-screen number for this
+    // visitor, and asynchronously increment the shared remote counter.
+    localExtra.conv += 1;
+    localExtra.files += 1;
+    var mbTenths = 0;
+    if (typeof fileBytes === 'number' && fileBytes > 0) {
+      var mb = fileBytes / 1048576;
+      localExtra.mb += mb;
+      mbTenths = Math.max(1, Math.round(mb * 10));
+    }
     renderStats();
+    bumpRemote(1, 1, mbTenths);
   }
   window.GIFMP4Stats = { track: trackConversion, render: renderStats };
 
@@ -222,6 +339,7 @@
     injectAds();
     applySeo();
     window.GIFMP4I18N.init();
+    loadBaseline();
     // re-render stats on language change
     window.GIFMP4OnLangChange = function () { renderStats(); };
     // nav highlight
