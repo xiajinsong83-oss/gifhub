@@ -12,6 +12,11 @@
   <url><loc>https://laserportal.cn/add-text.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://laserportal.cn/bulk-optimizer.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://laserportal.cn/privacy.html</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url>
+    <loc>https://laserportal.cn/terms.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
   <url><loc>https://laserportal.cn/about.html</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
   <url><loc>https://laserportal.cn/contact.html</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
 </urlset>
