@@ -30,7 +30,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png">
-<link rel="stylesheet" href="assets/css/main-v3.css">
+<link rel="stylesheet" href="assets/css/main-v4.css">
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3866829862674413" crossorigin="anonymous"></script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "name": "GIFMP4 Format Workshop", "url": "https://laserportal.cn", "inLanguage": ["en", "zh-CN", "zh-TW", "ja", "ko", "es", "fr", "de", "pt"]}, {"@type": "WebPage", "url": "https://laserportal.cn/gif-maker.html", "name": "GIF Maker - Create GIF from Images Online", "description": "Combine multiple images into an animated GIF with adjustable speed and size. Free, no upload, fully in-browser.", "isPartOf": {"@type": "WebSite", "name": "GIFMP4 Format Workshop", "url": "https://laserportal.cn"}}]}</script>
 </head>
@@ -41,12 +41,16 @@
 <div class="page">
 <h1 data-i18n="tool_gifmaker">GIF Maker</h1>
 <p class="desc" data-i18n="tool_gifmaker_desc">Combine multiple images into one animated GIF.</p>
-<div class="panel"><h2 data-i18n="params">params</h2><label class="upload-zone" id="uploadZone" for="imgInput">
+<div class="tool-layout">
+  <div class="tool-pane upload-pane"><label class="upload-zone" id="uploadZone" for="imgInput">
   <div class="big" data-i18n="up_drop">%s</div>
   <div class="hint" data-i18n="up_images">%s</div>
   <div class="hint" id="fileNameHint" style="margin-top:8px;color:var(--blue);font-weight:600;"></div>
   <input type="file" id="imgInput" accept="image/*">
-</label><div id="thumbs" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;"></div><div class="params"><div class="field"><label data-i18n="out_width">out_width</label>
+</label></div>
+  <div class="tool-pane preview-pane"><div class="preview-placeholder" data-i18n="preview_multi">preview_multi</div><div id="thumbs" class="thumbs-row"></div></div>
+</div>
+<div class="tool-pane bottom-pane"><div class="params"><div class="field"><label data-i18n="out_width">out_width</label>
 <input type="number" id="outWidth" value="480" min="64" max="800" step="1"></div><div class="field"><label data-i18n="frame_delay">frame_delay</label>
 <input type="number" id="frameDelay" value="100" min="20" max="5000" step="1"></div><div class="field"><label data-i18n="out_format">Output format</label><select id="outFormat"><option value="gif" data-i18n="fmt_gif">GIF</option><option value="apng" data-i18n="fmt_apng">APNG</option></select></div><div class="field check"><input type="checkbox" id="lightMode"><label data-i18n="lightweight">lightweight</label></div></div><div class="actions">
 <button class="btn" id="convertBtn" data-i18n="convert_btn">Convert</button>
@@ -82,9 +86,9 @@
 <script src="assets/js/lib/pako.min.js"></script>
 <script src="assets/js/lib/upng.js"></script>
 <script src="assets/js/convert-core-v2.js"></script>
-<script src="assets/js/i18n-v3.js"></script>
+<script src="assets/js/i18n-v4.js"></script>
 <script src="assets/js/site-v3.js"></script>
-<script src="assets/js/tools-v2.js"></script>
+<script src="assets/js/tools-v3.js"></script>
 
 </body>
 </html>

@@ -30,7 +30,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png">
-<link rel="stylesheet" href="assets/css/main-v3.css">
+<link rel="stylesheet" href="assets/css/main-v4.css">
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3866829862674413" crossorigin="anonymous"></script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "name": "GIFMP4 Format Workshop", "url": "https://laserportal.cn", "inLanguage": ["en", "zh-CN", "zh-TW", "ja", "ko", "es", "fr", "de", "pt"]}, {"@type": "WebPage", "url": "https://laserportal.cn/gif-splitter.html", "name": "GIF Splitter - Extract Frames from GIF Online", "description": "Split animated GIF into individual PNG frames and download them as a ZIP. Free, private, no upload, in-browser.", "isPartOf": {"@type": "WebSite", "name": "GIFMP4 Format Workshop", "url": "https://laserportal.cn"}}]}</script>
 </head>
@@ -41,12 +41,16 @@
 <div class="page">
 <h1 data-i18n="tool_splitter">GIF Splitter</h1>
 <p class="desc" data-i18n="tool_splitter_desc">Split a GIF into individual frames and download them as a ZIP.</p>
-<div class="panel"><h2 data-i18n="params">params</h2><label class="upload-zone" id="uploadZone" for="gifInput">
+<div class="tool-layout">
+  <div class="tool-pane upload-pane"><label class="upload-zone" id="uploadZone" for="gifInput">
   <div class="big" data-i18n="up_drop">%s</div>
   <div class="hint" data-i18n="up_gif">%s</div>
   <div class="hint" id="fileNameHint" style="margin-top:8px;color:var(--blue);font-weight:600;"></div>
   <input type="file" id="gifInput" accept="image/gif,.gif">
-</label><div class="params"><div class="field"><label data-i18n="every_n">every_n</label>
+</label></div>
+  <div class="tool-pane preview-pane"><div class="preview-placeholder" data-i18n="preview_placeholder">Preview</div><img id="sourcePreview" class="source-preview" style="display:none" alt=""></div>
+</div>
+<div class="tool-pane bottom-pane"><div class="params"><div class="field"><label data-i18n="every_n">every_n</label>
 <input type="number" id="everyN" value="1" min="1" max="10" step="1"></div></div><div class="actions">
 <button class="btn" id="convertBtn" data-i18n="convert_btn">Convert</button>
 <button class="btn ghost" id="cancelBtn" style="display:none" data-i18n="cancel_btn">Cancel</button>
@@ -81,9 +85,9 @@
 <script src="assets/js/lib/pako.min.js"></script>
 <script src="assets/js/lib/upng.js"></script>
 <script src="assets/js/convert-core-v2.js"></script>
-<script src="assets/js/i18n-v3.js"></script>
+<script src="assets/js/i18n-v4.js"></script>
 <script src="assets/js/site-v3.js"></script>
-<script src="assets/js/tools-v2.js"></script>
+<script src="assets/js/tools-v3.js"></script>
 
 </body>
 </html>

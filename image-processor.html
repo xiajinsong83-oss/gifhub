@@ -30,7 +30,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png">
-<link rel="stylesheet" href="assets/css/main-v3.css">
+<link rel="stylesheet" href="assets/css/main-v4.css">
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3866829862674413" crossorigin="anonymous"></script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "name": "GIFMP4 Format Workshop", "url": "https://laserportal.cn", "inLanguage": ["en", "zh-CN", "zh-TW", "ja", "ko", "es", "fr", "de", "pt"]}, {"@type": "WebPage", "url": "https://laserportal.cn/image-processor.html", "name": "Image Processor - Resize & Convert Images Online", "description": "Resize images and convert PNG, JPG, WebP, GIF formats in your browser. Free, private, no watermark.", "isPartOf": {"@type": "WebSite", "name": "GIFMP4 Format Workshop", "url": "https://laserportal.cn"}}]}</script>
 </head>
@@ -41,12 +41,16 @@
 <div class="page">
 <h1 data-i18n="tool_image">Image Processor</h1>
 <p class="desc" data-i18n="tool_image_desc">Resize images and convert between PNG, JPG, WebP and GIF.</p>
-<div class="panel"><h2 data-i18n="params">params</h2><label class="upload-zone" id="uploadZone" for="imgInput">
+<div class="tool-layout">
+  <div class="tool-pane upload-pane"><label class="upload-zone" id="uploadZone" for="imgInput">
   <div class="big" data-i18n="up_drop">%s</div>
   <div class="hint" data-i18n="up_images">%s</div>
   <div class="hint" id="fileNameHint" style="margin-top:8px;color:var(--blue);font-weight:600;"></div>
   <input type="file" id="imgInput" accept="image/*">
-</label><div class="params"><div class="field"><label data-i18n="out_width">out_width</label>
+</label></div>
+  <div class="tool-pane preview-pane"><div class="preview-placeholder" data-i18n="preview_placeholder">Preview</div><img id="sourcePreview" class="source-preview" style="display:none" alt=""></div>
+</div>
+<div class="tool-pane bottom-pane"><div class="params"><div class="field"><label data-i18n="out_width">out_width</label>
 <input type="number" id="outWidth" value="1024" min="64" max="4096" step="1"></div><div class="field"><label data-i18n="crop_pct">crop_pct</label>
 <input type="number" id="cropPct" value="100" min="10" max="100" step="1"></div><div class="field"><label data-i18n="img_quality">img_quality</label><select id="imgQuality"><option value="high" data-i18n="quality_hi">High</option><option value="med" selected data-i18n="quality_med">Medium</option><option value="low" data-i18n="quality_low">Low</option></select></div><div class="field"><label data-i18n="to">To format</label><select id="toFormat"><option value="png">PNG</option><option value="jpg">JPG</option><option value="webp">WebP</option><option value="gif">GIF</option></select></div></div><div class="actions">
 <button class="btn" id="convertBtn" data-i18n="convert_btn">Convert</button>
@@ -82,9 +86,9 @@
 <script src="assets/js/lib/pako.min.js"></script>
 <script src="assets/js/lib/upng.js"></script>
 <script src="assets/js/convert-core-v2.js"></script>
-<script src="assets/js/i18n-v3.js"></script>
+<script src="assets/js/i18n-v4.js"></script>
 <script src="assets/js/site-v3.js"></script>
-<script src="assets/js/tools-v2.js"></script>
+<script src="assets/js/tools-v3.js"></script>
 
 </body>
 </html>
