@@ -3,7 +3,7 @@
  */
 (function () {
   'use strict';
-  var SITE_URL = 'https://laserportal.cn/';
+  var SITE_URL = 'https://www.laserportal.cn/';
 
   function el(tag, cls, html) {
     var e = document.createElement(tag);
