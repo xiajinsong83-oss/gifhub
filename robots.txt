@@ -93,4 +93,4 @@ Allow: /
 User-agent: 360Spider
 Allow: /
 
-Sitemap: https://laserportal.cn/sitemap.xml
+Sitemap: https://www.laserportal.cn/sitemap.xml
